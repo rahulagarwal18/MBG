@@ -11,7 +11,7 @@ export default async function handler(req, res) {
   const out = new Map();
   for (const s of SP500) if (s.startsWith(k)) out.set(s, { s, n: null, i: null });
   try {
-    const j = await (await fetch(`https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=15&newsCount=0`, { headers: UA })).json();
+    const j = await (await fetch(`https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=15&newsCount=0`, { headers: UA, signal: AbortSignal.timeout(3000) })).json();
     for (const x of j.quotes || []) {
       if (x.quoteType !== 'EQUITY' || !US.has(x.exchange) || /[.=]/.test(x.symbol)) continue;
       out.set(x.symbol, { s: x.symbol, n: x.longname || x.shortname || null, i: x.sector || null });
