@@ -434,7 +434,8 @@ footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);display
     if (sc) {
       $('#scanMeta').textContent = `${sc.label} · ${sc.count}/${sc.total} survivors · ${sc.secs}s`;
       $('#scanBody').innerHTML = sc.survivors.length ? `<div class="chips">${sc.survivors.map(s => `<span class="chip"><b>${esc(s.sym)}</b><span>+${fmt(s.chg)}%</span></span>`).join('')}</div>`
-        : '<div class="empty">No stocks passed the gap filter on this scan.</div>';
+        : `<div style="color:var(--mute);font-size:13.5px;margin-bottom:10px">No stock was still holding a +${config.minGapPct}% gap at this scan. Top movers in the universe:</div>` +
+          (sc.movers?.length ? `<div class="chips">${sc.movers.map(s => `<span class="chip"><b>${esc(s.sym)}</b><span style="color:${s.chg >= 0 ? 'var(--green)' : 'var(--red)'}">${s.chg >= 0 ? '+' : ''}${fmt(s.chg)}%</span></span>`).join('')}</div>` : '');
     }
 
     // history
