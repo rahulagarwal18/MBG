@@ -6,7 +6,7 @@ export const config = { maxDuration: 60 };
 export default async function handler(req, res) {
   try {
     let rep = await readJSON('report.json');
-    const stale = !rep || rep.v !== 2 || (Date.now() / 1000 - rep.computedAt) > 20 * 3600;
+    const stale = !rep || rep.v !== 3 || (Date.now() / 1000 - rep.computedAt) > 20 * 3600;
     if (stale) {
       rep = await runBacktest({ range: '6mo' });
       await writeJSON('report.json', rep);

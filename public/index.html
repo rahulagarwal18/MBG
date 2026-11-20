@@ -391,7 +391,7 @@ dialog#pinDlg input[type=password]{width:100%;font:600 22px "JetBrains Mono",mon
     <div class="rules" id="rulesGrid"></div>
     <div class="note">
       <b>Human approval.</b> Every new trade is proposed first and only executed after a person approves it with the approver PIN. The live price is re-checked at the moment of approval; if it has run more than 1% away or hit the stop, the trade is not placed. A proposal nobody decides on expires at the next scan. Stops, targets and the closing exit stay automatic because they protect capital.<br><br>
-      <b>How a day runs.</b> At 09:55 ET the desk pulls live quotes for all 503 S&amp;P 500 stocks and keeps only the ones that opened at least 2% above yesterday’s close, are up 3% or more, and are still holding above the open. The strongest names are bought with a stop under the day’s low (3–7% away), sized so a stop-out costs 1.5% of the account. At +1R the stop moves to breakeven; past +2R it trails 1R behind price; at +3R the target takes profit. The scan repeats every 30 minutes, no new entries in the final hour, and everything is closed by 15:51 ET.
+      <b>How a day runs.</b> At 09:50 ET the desk pulls live quotes for all 503 S&amp;P 500 stocks and keeps only the ones that opened at least 2% above yesterday’s close, are up 3% or more, and are still holding above the open. The strongest names are bought with a stop under the day’s low (3–7% away), sized so a stop-out costs 1.5% of the account. At +1R the stop moves to breakeven; past +2R it trails 1R behind price; at +3R the target takes profit. The scan repeats every 30 minutes, no new entries in the final hour, and everything is closed by 15:51 ET.
     </div>
   </section>
 
@@ -534,7 +534,7 @@ dialog#pinDlg input[type=password]{width:100%;font:600 22px "JetBrains Mono",mon
     } else {
       const nxt = clock && clock.openTs > now ? clock.openTs : null;
       $('#mText').textContent = nxt ? `Market closed · opens ${etFull.format(nxt * 1000)} ET` : 'Market closed · bot standing by';
-      $('#nextScan').textContent = 'first scan 09:55 ET';
+      $('#nextScan').textContent = 'first scan 09:50 ET';
     }
     // active pipeline step
     let active = 5;
@@ -612,7 +612,7 @@ dialog#pinDlg input[type=password]{width:100%;font:600 22px "JetBrains Mono",mon
     if (replay) {
       const firstScan = clock && clock.openTs > now ? new Date((clock.openTs + config.firstScanMin * 60) * 1000) : null;
       const local = firstScan ? firstScan.toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : null;
-      $('#modeBanner').innerHTML = `<span style="font-size:20px">⏱</span><div><b>Live trading starts ${local ? local + ' your time (09:55 ET)' : 'at the next 09:55 ET scan'}.</b> Until the first live trade, the desk shows the same rules replayed over the last ${report.sessions} sessions on real 5-minute prices.</div>`;
+      $('#modeBanner').innerHTML = `<span style="font-size:20px">⏱</span><div><b>Live trading starts ${local ? local + ' your time (09:50 ET)' : 'at the next 09:50 ET scan'}.</b> Until the first live trade, the desk shows the same rules replayed over the last ${report.sessions} sessions on real 5-minute prices.</div>`;
       const lastDay = report.to;
       const dayTr = report.recent.filter(t => t.date === lastDay);
       const dayP = dayTr.reduce((a, t) => a + t.pnl, 0);
@@ -622,7 +622,7 @@ dialog#pinDlg input[type=password]{width:100%;font:600 22px "JetBrains Mono",mon
       $('#kTot').textContent = sgnUsd(report.totalPnl); $('#kTot').className = 'v ' + cls(report.totalPnl);
       $('#kTotS').textContent = `${report.totalPct >= 0 ? '+' : ''}${fmt(report.totalPct)}% · ${report.sessions} sessions`;
       $('#kWin').textContent = fmt(report.winRate, 0) + '%'; $('#kWinS').textContent = `${report.wins} of ${report.trades} trades`;
-      $('#kOpen').textContent = `0/${config.maxPositions}`; $('#kOpenS').textContent = 'live from 09:55 ET';
+      $('#kOpen').textContent = `0/${config.maxPositions}`; $('#kOpenS').textContent = 'live from 09:50 ET';
       $('#kDD').textContent = fmt(report.maxDDPct) + '%'; $('#kDDS').textContent = 'replay, peak to trough';
       $('#eqRange').textContent = `replay · ${report.from} → ${report.to}`;
       chart($('#eqWrap'), report.curve.map(c => ({ v: c.v, d: c.date })), { base: report.startCash, labels: p => p.d.slice(5) });
@@ -648,7 +648,7 @@ dialog#pinDlg input[type=password]{width:100%;font:600 22px "JetBrains Mono",mon
     // rules
     $('#rulesGrid').innerHTML = [
       ['Universe', 'S&P 500', '503 symbols, every scan'],
-      ['First scan', '09:55 ET', `then every ${config.scanEveryMin} min`],
+      ['First scan', '09:50 ET', `then every ${config.scanEveryMin} min`],
       ['Gap filter', `+${config.minGapPct}%`, `opened ≥ +${config.minOpenGapPct}%, holding the open`],
       ['Risk / trade', `${config.riskPct}%`, 'of account equity'],
       ['Stop', `${config.stopMinPct}–${config.stopMaxPct}%`, 'under the day’s low'],

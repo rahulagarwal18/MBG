@@ -3,7 +3,7 @@ name: desk-heartbeat
 on:
   schedule:
     # every 15 minutes, Mon–Fri, 13:00–21:59 UTC (covers 09:30–16:00 New York in summer and winter)
-    - cron: "*/15 13-21 * * 1-5"
+    - cron: "*/5 13-21 * * 1-5"
   workflow_dispatch: {}
 
 concurrency:
