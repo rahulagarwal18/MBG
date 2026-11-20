@@ -20,12 +20,8 @@
   ],
   "crons": [
     {
-      "path": "/api/tick",
-      "schedule": "*/15 13-21 * * 1-5"
-    },
-    {
       "path": "/api/tick?at=close",
-      "schedule": "51 19,20 * * 1-5"
+      "schedule": "51 20 * * 1-5"
     }
   ]
 }
