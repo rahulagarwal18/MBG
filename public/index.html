@@ -117,6 +117,9 @@ tr:last-child td{border-bottom:none}
 .note{background:var(--paper);border:1px dashed var(--line);border-radius:14px;padding:14px 16px;color:var(--ink2);font-size:13.5px;margin-top:16px}
 footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;color:var(--mute);font-size:12px}
 .hidden{display:none!important}
+.banner{display:flex;gap:12px;align-items:center;background:var(--paper);border:1px solid var(--line);border-left:4px solid var(--amber);border-radius:14px;padding:12px 16px;margin-bottom:14px;font-size:14px;color:var(--ink2);box-shadow:var(--shadow)}
+.banner b{color:var(--ink)}
+.tag.rp{background:color-mix(in srgb,var(--amber) 16%,transparent);color:var(--amber)}
 .skel{background:linear-gradient(90deg,var(--chip),var(--line),var(--chip));background-size:200% 100%;animation:sk 1.2s infinite;border-radius:8px;color:transparent!important}
 @keyframes sk{to{background-position:-200% 0}}
 .tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font:500 12px "JetBrains Mono",monospace;padding:7px 9px;border-radius:8px;white-space:nowrap;transform:translate(-50%,-115%);opacity:0;transition:opacity .12s}
@@ -170,6 +173,7 @@ footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);display
 
   <!-- LIVE -->
   <main id="tab-live">
+    <div class="banner hidden" id="modeBanner"></div>
     <div class="kpis">
       <div class="kpi"><div class="l">Equity</div><div class="v" id="kEq">—</div><div class="s" id="kEqS">simulated account</div></div>
       <div class="kpi"><div class="l">Today</div><div class="v" id="kDay">—</div><div class="s" id="kDayS">realized + open</div></div>
@@ -341,11 +345,14 @@ footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);display
     svg.onmouseleave = () => { tip.style.opacity = 0; hv.setAttribute('opacity', '0'); };
   }
 
-  let last = null, marks = {};
+  let last = null, marks = {}, snap = null, snapAt = 0;
   async function load() {
     try {
-      const r = await fetch('/api/state', { cache: 'no-store' });
-      last = await r.json();
+      const jobs = [fetch('/api/state', { cache: 'no-store' }).then(r => r.json())];
+      if (!report) jobs.push(fetch('/api/report').then(r => r.json()).then(j => { if (!j.error) { report = j; renderReport(j); } }).catch(() => {}));
+      if (!snap || Date.now() - snapAt > 300000) jobs.push(fetch('/api/scan').then(r => r.json()).then(j => { if (!j.error) { snap = j; snapAt = Date.now(); } }).catch(() => {}));
+      const [st] = await Promise.all(jobs);
+      last = st;
       await loadMarks();
       render(last);
     } catch (e) { $('#mText').textContent = 'Reconnecting…'; }
@@ -421,8 +428,9 @@ footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);display
         <td class="${cls(pnl)}"><b>${sgnUsd(pnl)}</b></td></tr>`;
     }).join('') : `<tr><td colspan="8" class="empty">${open ? 'Flat. Waiting for the next scan to find gappers.' : 'Flat. All positions are closed before the bell.'}</td></tr>`;
 
-    // scan
-    const sc = state.scans[0];
+    // scan — live scan during the session, otherwise the latest market snapshot
+    const liveScan = state.scans[0] && clock?.isOpen && state.scans[0].t >= clock.openTs ? state.scans[0] : null;
+    const sc = liveScan || (snap ? { ...snap, label: `Last close · ${etDay.format(snap.asOf * 1000)} ${snap.label}` } : state.scans[0]);
     if (sc) {
       $('#scanMeta').textContent = `${sc.label} · ${sc.count}/${sc.total} survivors · ${sc.secs}s`;
       $('#scanBody').innerHTML = sc.survivors.length ? `<div class="chips">${sc.survivors.map(s => `<span class="chip"><b>${esc(s.sym)}</b><span>+${fmt(s.chg)}%</span></span>`).join('')}</div>`
@@ -439,6 +447,42 @@ footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);display
     // feed
     $('#feedCount').textContent = state.events.length;
     $('#feed').innerHTML = state.events.slice(0, 80).map(e => `<div class="msg ${e.type}">${esc(e.text)}<time>${etDay.format(e.t * 1000)} · ${etFmt.format(e.t * 1000)} ET</time></div>`).join('') || '<div class="empty">No events yet.</div>';
+
+    // Before the first live trade: show the same rules replayed on real prices (clearly labeled).
+    const replay = !state.trades.length && !state.positions.length && report && report.curve?.length;
+    $('#modeBanner').classList.toggle('hidden', !replay);
+    if (replay) {
+      const firstScan = clock && clock.openTs > now ? new Date((clock.openTs + config.firstScanMin * 60) * 1000) : null;
+      const local = firstScan ? firstScan.toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : null;
+      $('#modeBanner').innerHTML = `<span style="font-size:20px">⏱</span><div><b>Live trading starts ${local ? local + ' your time (09:55 ET)' : 'at the next 09:55 ET scan'}.</b> Until the first live trade, the desk shows the same rules replayed over the last ${report.sessions} sessions on real 5-minute prices.</div>`;
+      const lastDay = report.to;
+      const dayTr = report.recent.filter(t => t.date === lastDay);
+      const dayP = dayTr.reduce((a, t) => a + t.pnl, 0);
+      const endEq = report.startCash + report.totalPnl;
+      $('#kEq').textContent = usd(endEq); $('#kEqS').textContent = `replay · start ${usd(report.startCash, 0)}`;
+      $('#kDay').textContent = sgnUsd(dayP); $('#kDay').className = 'v ' + cls(dayP); $('#kDayS').textContent = `last session · ${dayTr.length} trades`;
+      $('#kTot').textContent = sgnUsd(report.totalPnl); $('#kTot').className = 'v ' + cls(report.totalPnl);
+      $('#kTotS').textContent = `${report.totalPct >= 0 ? '+' : ''}${fmt(report.totalPct)}% · ${report.sessions} sessions`;
+      $('#kWin').textContent = fmt(report.winRate, 0) + '%'; $('#kWinS').textContent = `${report.wins} of ${report.trades} trades`;
+      $('#kOpen').textContent = `0/${config.maxPositions}`; $('#kOpenS').textContent = 'live from 09:55 ET';
+      $('#kDD').textContent = fmt(report.maxDDPct) + '%'; $('#kDDS').textContent = 'replay, peak to trough';
+      $('#eqRange').textContent = `replay · ${report.from} → ${report.to}`;
+      chart($('#eqWrap'), report.curve.map(c => ({ v: c.v, d: c.date })), { base: report.startCash, labels: p => p.d.slice(5) });
+      $('#histMeta').textContent = `replay · last ${report.recent.length} of ${report.trades}`;
+      $('#histBody').innerHTML = report.recent.map(t => `<tr>
+        <td><span class="sym">${esc(t.sym)}</span> <span class="tag rp">replay</span></td><td>${t.date.slice(5)}</td><td>${t.shares}</td><td>${usd(t.entry)}</td><td>${usd(t.exit)}</td>
+        <td class="${cls(t.r)}">${t.r > 0 ? '+' : ''}${fmt(t.r)}R</td><td class="${cls(t.pnl)}"><b>${sgnUsd(t.pnl)}</b></td><td><span class="tag ${t.reason === 'target hit' ? 'g' : t.reason.includes('stop') ? 'r' : ''}">${esc(t.reason)}</span></td></tr>`).join('');
+      // feed: last replayed session, in alert format
+      const ev = [];
+      for (const t of dayTr) {
+        if (t.inTime) ev.push({ t: t.inTime, type: 'entry', text: `🟢 ${t.sym} entry filled\n${t.shares} shares @ ${usd(t.entry)} | Stop ${usd(t.stop)} | Risk $${Math.round((t.entry - t.stop) * t.shares)} | BE at ${usd(t.be)}` });
+        ev.push({ t: t.time, type: 'exit', text: `${t.pnl >= 0 ? '🟢' : '🔴'} ${t.sym} ${t.reason} · ${t.shares} sh @ ${usd(t.exit)} | P&L ${sgnUsd(t.pnl)} (${fmt(t.r)}R)` });
+      }
+      ev.sort((a, b) => b.t - a.t);
+      const all = [...ev.map(e => ({ ...e, rp: true })), ...state.events];
+      $('#feedCount').textContent = all.length;
+      $('#feed').innerHTML = all.map(e => `<div class="msg ${e.type}">${esc(e.text)}<time>${e.rp ? 'replay · ' : ''}${etDay.format(e.t * 1000)} · ${etFmt.format(e.t * 1000)} ET</time></div>`).join('');
+    }
 
     // rules
     $('#rulesGrid').innerHTML = [
