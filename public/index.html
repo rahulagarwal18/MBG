@@ -260,14 +260,18 @@ dialog#pinDlg input[type=password]{width:100%;font:600 22px "JetBrains Mono",mon
   </section>
 
   <nav class="tabs" role="tablist">
-    <button class="tab on" data-tab="live">Live desk</button>
+    <button class="tab on" data-tab="overview">📊 Overview</button>
+    <button class="tab" data-tab="live">Live desk</button>
     <button class="tab" data-tab="stock">Stock report</button>
     <button class="tab" data-tab="report">Strategy report</button>
     <button class="tab" data-tab="rules">Rules</button>
   </nav>
 
+  <!-- OVERVIEW (charts) -->
+  <section id="tab-overview"><div id="vizRoot"><div class="empty" style="padding:40px 10px">Loading charts…</div></div></section>
+
   <!-- LIVE -->
-  <main id="tab-live">
+  <main id="tab-live" class="hidden">
     <div class="banner hidden" id="modeBanner"></div>
     <div class="duo">
       <div class="card demo">
@@ -402,6 +406,7 @@ dialog#pinDlg input[type=password]{width:100%;font:600 22px "JetBrains Mono",mon
 </div>
 <div class="tip" id="tip"></div>
 
+<script src="/viz.js"></script>
 <script>
 (() => {
   const $ = s => document.querySelector(s);
@@ -428,8 +433,9 @@ dialog#pinDlg input[type=password]{width:100%;font:600 22px "JetBrains Mono",mon
   let report = null;
   document.querySelectorAll('.tab').forEach(b => b.onclick = () => {
     document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === b));
-    ['live', 'stock', 'report', 'rules'].forEach(k => $('#tab-' + k).classList.toggle('hidden', k !== b.dataset.tab));
+    ['overview', 'live', 'stock', 'report', 'rules'].forEach(k => $('#tab-' + k).classList.toggle('hidden', k !== b.dataset.tab));
     if (b.dataset.tab === 'report' && !report) loadReport();
+    if (b.dataset.tab === 'overview') drawViz();
     if (b.dataset.tab === 'stock') srInit();
     try { localStorage.setItem('tab', b.dataset.tab); } catch {}
   });
@@ -658,6 +664,14 @@ dialog#pinDlg input[type=password]{width:100%;font:600 22px "JetBrains Mono",mon
     ].map(([l, v, s]) => `<div class="rule"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('');
 
     $('#updated').textContent = 'updated ' + etFmt.format(Date.now()) + ' ET';
+    drawViz();
+  }
+
+  // Overview tab: charts drawn by /viz.js from the data this page already has.
+  function drawViz() {
+    if (!last || !window.Viz) return;
+    try { window.Viz.render($('#vizRoot'), { ...last, report, snap, marks, money: usd, tz: 'America/New_York', tzLabel: ' ET', market: 'S&P 500', universe: 'S&P 500' }); }
+    catch (e) { console.error('overview charts', e); }
   }
 
 
@@ -983,6 +997,7 @@ dialog#pinDlg input[type=password]{width:100%;font:600 22px "JetBrains Mono",mon
     chart($('#rEqWrap'), r.curve.map(c => ({ v: c.v, d: c.date })), { base: r.startCash, labels: p => p.d.slice(5) });
     $('#rBody').innerHTML = r.recent.map(t => `<tr><td class="sym">${esc(t.sym)}</td><td>${t.date.slice(5)}</td><td class="pos">+${fmt(t.gap)}%</td><td>${t.shares}</td><td>${usd(t.entry)}</td><td>${usd(t.exit)}</td>
       <td class="${cls(t.r)}">${t.r > 0 ? '+' : ''}${fmt(t.r)}R</td><td class="${cls(t.pnl)}"><b>${sgnUsd(t.pnl)}</b></td><td><span class="tag ${t.reason === 'target hit' ? 'g' : t.reason.includes('stop') ? 'r' : ''}">${esc(t.reason)}</span></td></tr>`).join('');
+    drawViz();
   }
 
   setInterval(() => { $('#clockPill').textContent = etFmt.format(Date.now()) + ' ET'; }, 1000);
@@ -990,7 +1005,7 @@ dialog#pinDlg input[type=password]{width:100%;font:600 22px "JetBrains Mono",mon
   load();
   setInterval(load, 20000);
   let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (last) render(last); if (report) renderReport(report); }, 150); });
-  try { const t = localStorage.getItem('tab'); if (t && t !== 'live') document.querySelector(`.tab[data-tab="${t}"]`)?.click(); } catch {}
+  try { const t = localStorage.getItem('tab'); if (t && t !== 'overview') document.querySelector(`.tab[data-tab="${t}"]`)?.click(); } catch {}
 })();
 </script>
 </body>
