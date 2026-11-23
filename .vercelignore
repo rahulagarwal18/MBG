@@ -1,0 +1,4 @@
+nse-desk/
+video/
+node_modules/
+.env*
